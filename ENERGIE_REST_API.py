@@ -21,6 +21,7 @@ def hello_world():
          
 @app.route('/productionplan/', methods= ['GET', 'POST'])
 def productionplan():
+    
         fuelsDict ={"fuels" : {"gas(euro/MWh)" : 0, "kerosine(euro/MWh)" : 0,
                                          "co2(euro/ton)":0,"wind(%)":0}  } 
         
@@ -40,18 +41,13 @@ def productionplan():
         dataOuterDict = {"load" : load, "fuels" : fuelsDict['fuels'], "powerplants" : powerplantsDict['powerplants']}
         
         
-        dict1 = {'name': 'bob', "p": 91}
-        dict2  = {'name': 'bill', "p": 12}
-        dict3 = {'name': 'ben', "p": 0}
-        dict4 = {'name': 'becky', "p": 0}
-        dict5  = {'name': 'bank', "p": 2}
-        dict6  = {'name': 'boy', "p": 0}
         # list comprehension combined with dict comprehension?
         
         key_list = ['name', 'p']
-
-        nameList = ['bob', 'bill', 'ben', 'becky', 'bank', 'boy']
-
+        
+        nameList = [x['name'] for x in powerplantsDict['powerplants']]
+        
+        #for loop evaluating each p 
         pList = [75, 50, 0,2,0,0]
 
         listOut = [{key_list[0]: nameList[idx], key_list[1]: pList[idx]} for idx in range(len(nameList))]
