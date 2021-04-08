@@ -12,7 +12,112 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 import pandas as pd
 import operator
-  
+#, name, pType, efficiency, pmin, pmax, fuels
+class PowerPlant:
+     
+    def __init__(self):
+        self.name = name
+        self.pType = type_
+        self.efficiency = efficiency
+        self.pmin = pmin
+        self.pmax = pmax
+        self.fuels = fuels
+   
+    def ChooseFuel(self):
+        if pType !=  'windturbine':
+            self.typeDict = {'gasfired': fuels['gas(euro/MWh)'], 'turbojet': fuels['kerosine(euro/MWh)']}
+            self.fuelCost = typeDict[pType]
+        elif pType ==  'windturbine':
+            self.typeDict = {'windturbine': fuels['wind(%)']/100}
+            self.fuelDec = typeDict[pType]
+    
+    def MeritValue(self):
+        if pType != 'windturbine':
+            self.meritVal = 1/efficiency*fuelCost
+        elif pType == 'windturbine':
+            self.meritVal = 0
+    
+    @property        
+    def name(self):
+        return self.name    
+    
+    @name.setter
+    def name(self, n):
+        self.name = n
+        
+    @property        
+    def pType(self):
+        return self.pType 
+    
+    @pType.setter
+    def pType(self, p):
+        if p == 'gasfired' or p == 'turbojet' or p ==  'windturbine':
+            self.pType= p
+        else: 
+            app.logger.error('Unrecognised fuel type: ', str(p))
+    
+    @property        
+    def efficiency(self):
+        return self.efficiency   
+    
+    @efficiency.setter
+    def efficiency(self, eff):#
+        try:
+            if not eff < 0 and not eff >1:
+                self.efficiency = eff 
+            else:
+                app.logger.error('efficiency not between 0 and 1.')
+        except TypeError:
+            app.logger.error('Incorrect type for efficiency. Should be float or int.')
+            
+        
+    @property        
+    def pmin(self):
+        return self.pmin
+    
+    @pmin.setter
+    def pmin(self, pmi):
+        try:
+            if not pmi < 0:
+                self.pmin = pmi
+            else:
+                app.logger.error('Pmin is negative.')
+        except TypeError:
+            app.logger.error('Wrong type for Pmin. Should be float or int.')
+ 
+    @property
+    def pmax(self):
+        return self.pmax
+    
+    @pmax.setter
+    def pmax(self, pma):
+        try:
+            if not pma < 0:
+                self.pmax = pma
+            else:
+                app.logger.error('Pmax is negative.')
+        except TypeError:
+            app.logger.error('Wrong type for Pmax. Should be float or int.')
+            
+    @property
+    def fuels(self):
+        return self.fuels
+    
+    @fuels.setter
+    def fuels(self, f):
+        try:
+            checks =0
+            for key in f:
+                if not f[key] <0:
+                    check+=1
+            if len(f.keys()) == checks:
+                self.fuels = f
+            else:
+                app.logger.error('fuels cost or percentage cannot be negative.')
+        except TypeError:
+            app.logger.error('Fuels needs to be a dictionary.')
+    
+    
 @app.route('/productionplan/', methods= ['GET', 'POST'])
 def Production_Plan():
     
@@ -46,11 +151,21 @@ def Production_Plan():
         
         
         nameList = [x['name'] for x in powerplantsDict['powerplants']]
+        instanceDict = {}
+        for i in range(len(nameList)):
+            instanceDict['PowerPlant_%s' % str(i)] = PowerPlant(nameList[i], 
+                                                                powerplantsDict['powerplants'][i]['type'], 
+                                                                powerplantsDict['powerplants'][i]['efficiency'], 
+                                                                powerplantsDict['powerplants'][i]['pmin'], 
+                                                                powerplantsDict['powerplants'][i]['pmax'], 
+                                                                fuelsDict['fuels'])
         
-        costEff=Build_Cost_Eff(nameList, powerplantsDict, fuelsDict['fuels'])
+        # dictionary of powerplant objects created. 
+        
+        #costEff=Build_Cost_Eff(nameList, powerplantsDict, fuelsDict['fuels'])
         #euro per ton of co2 and wind% passed through
-        merCond ={'co2(euro/ton)': fuelsDict['fuels']['co2(euro/ton)'], 'wind(%)': fuelsDict['fuels']['wind(%)']}
-        meritOrd = Merit_Order(merCond, costEff, nameList, powerplantsDict)
+        #merCond ={'co2(euro/ton)': fuelsDict['fuels']['co2(euro/ton)'], 'wind(%)': fuelsDict['fuels']['wind(%)']}
+        meritOrd = Merit_Order(instanceDict)#(merCond, costEff, nameList, powerplantsDict)
         
         #Tomorrow use meritOrd to assign power load, use load - sum(pmin) so need powerplantsDict
         
@@ -82,19 +197,22 @@ def Build_Cost_Eff(names, powDict, costs):
     return costEff
    
 
-def Merit_Order(merCond, costEff, names, powDict):  # take in dict containing cost per MWh and eff for given name 
+def Merit_Order(objDict):#merCond, costEff, names, powDict):  # take in dict containing cost per MWh and eff for given name 
     meritOrderUnSorted={}
-    keyToDel = []
-    for key in costEff:
-        name = key
-        costPMWh = costEff[key][2]
-        meritCoEf = 1/costEff[key][1]
-        meritOrderUnSorted[name] = costPMWh*meritCoEf
-    for key in meritOrderUnSorted:
-        if meritOrderUnSorted[key] ==0:
-            keyToDel.append(key)
-    for i in keyToDel:
-        del meritOrderUnSorted[i]
+    
+    for key in objDict:
+        meritOrderUnSorted[objDict[key].name] = objDict[key].meritVal
+   # keyToDel = []
+    # for key in costEff:
+    #     name = key
+    #     costPMWh = costEff[key][2]
+    #     meritCoEf = 1/costEff[key][1]
+    #     meritOrderUnSorted[name] = costPMWh*meritCoEf
+    # for key in meritOrderUnSorted:
+    #     if meritOrderUnSorted[key] ==0:
+    #         keyToDel.append(key)
+    # for i in keyToDel:
+    #     del meritOrderUnSorted[i]
     merOrd = sorted(meritOrderUnSorted.items(), key=operator.itemgetter(1))
     return merOrd
 
