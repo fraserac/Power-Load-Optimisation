@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 load = sum of power output
 do not exceed pmax, or lower than pmin.
@@ -12,49 +14,52 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 import pandas as pd
 import operator
+from collections import OrderedDict
 #, name, pType, efficiency, pmin, pmax, fuels
-class PowerPlant:
+class PowerPlant(object):
      
     def __init__(self):
-        self.name = ""
-        self.pType = ""
-        self.efficiency = 0.0
-        self.pmin = 0.0
-        self.pmax = 0.0
-        self.fuels = {"default": 0.0}
+        self._name = ""
+        self._pType = ""
+        self._efficiency = 0.0
+        self._pmin = 0.0
+        self._pmax = 0.0
+        self._fuels = {"default": 0.0}
+        self._typeDict = {}
+        self._fuelCost = {}
+        self._fuelDec = {}
+        self._meritVal = 0.0
         self.typeDict = {}
         self.fuelCost = {}
         self.fuelDec = {}
-        self.meritVal = 0.0
-    
     @property        
     def name(self):
-        return self.name    
+        return self._name 
     
     @name.setter
     def name(self, n):
-        self.name = n
-        
+        self._name = n
+    
     @property        
     def pType(self):
-        return self.pType 
+        return self._pType 
     
     @pType.setter
     def pType(self, p):
         if p == 'gasfired' or p == 'turbojet' or p ==  'windturbine':
-            self.pType= p
+            self._pType= p
         else: 
             app.logger.error('Unrecognised fuel type: ', str(p))
     
     @property        
     def efficiency(self):
-        return self.efficiency   
+        return self._efficiency   
     
     @efficiency.setter
     def efficiency(self, eff):#
         try:
             if not eff < 0 and not eff >1:
-                self.efficiency = eff 
+                self._efficiency = eff 
             else:
                 app.logger.error('efficiency not between 0 and 1.')
         except TypeError:
@@ -63,13 +68,13 @@ class PowerPlant:
         
     @property        
     def pmin(self):
-        return self.pmin
+        return self._pmin
     
     @pmin.setter
     def pmin(self, pmi):
         try:
             if not pmi < 0:
-                self.pmin = pmi
+                self._pmin = pmi
             else:
                 app.logger.error('Pmin is negative.')
         except TypeError:
@@ -77,13 +82,13 @@ class PowerPlant:
  
     @property
     def pmax(self):
-        return self.pmax
+        return self._pmax
     
     @pmax.setter
     def pmax(self, pma):
         try:
             if not pma < 0:
-                self.pmax = pma
+                self._pmax = pma
             else:
                 app.logger.error('Pmax is negative.')
         except TypeError:
@@ -91,7 +96,7 @@ class PowerPlant:
             
     @property
     def fuels(self):
-        return self.fuels
+        return self._fuels
     
     @fuels.setter
     def fuels(self, f):
@@ -101,7 +106,7 @@ class PowerPlant:
                 if not f[key] <0:
                     check+=1
             if len(f.keys()) == checks:
-                self.fuels = f
+                self._fuels = f
             else:
                 app.logger.error('fuels cost or percentage cannot be negative.')
         except TypeError:
@@ -109,18 +114,18 @@ class PowerPlant:
    
     
     def Choose_Fuel(self):
-        if pType !=  'windturbine':
-            self.typeDict = {'gasfired': fuels['gas(euro/MWh)'], 'turbojet': fuels['kerosine(euro/MWh)']}
-            self.fuelCost = typeDict[pType]
-        elif pType ==  'windturbine':
-            self.typeDict = {'windturbine': fuels['wind(%)']/100}
-            self.fuelDec = typeDict[pType]
+        if self._pType !=  'windturbine':
+            self.typeDict = {'gasfired': self._fuels['gas(euro/MWh)'], 'turbojet': self._fuels['kerosine(euro/MWh)']}
+            self.fuelCost = self.typeDict[self._pType]
+        elif self._pType ==  'windturbine':
+            self.typeDict = {'windturbine': self._fuels['wind(%)']/100}
+            self.fuelDec = self.typeDict[self._pType]
     
     def Merit_Value(self):
-        if pType != 'windturbine':
-            self.meritVal = 1/efficiency*fuelCost
-        elif pType == 'windturbine':
-            self.meritVal = 0
+        if self._pType != 'windturbine':
+            self._meritVal = (1/self._efficiency*self.fuelCost)*self._pmin 
+        elif self._pType == 'windturbine':
+            self._meritVal = 0 
     
    
     
@@ -162,56 +167,63 @@ def Production_Plan():
         
         nameList = [x['name'] for x in powerplantsDict['powerplants']]
         instanceDict = {}
+        
         for i in range(len(nameList)):
-            instanceDict['PowerPlant_%s' % str(i)] = PowerPlant(nameList[i], 
-                                                                powerplantsDict['powerplants'][i]['type'], 
-                                                                powerplantsDict['powerplants'][i]['efficiency'], 
-                                                                powerplantsDict['powerplants'][i]['pmin'], 
-                                                                powerplantsDict['powerplants'][i]['pmax'], 
-                                                                fuelsDict['fuels'])
+            instanceDict['PowerPlant_%s' % str(i)] = PowerPlant()
+            instanceDict['PowerPlant_%s' % str(i)]._name = powerplantsDict['powerplants'][i]['name']
+            instanceDict['PowerPlant_%s' % str(i)]._pType =  powerplantsDict['powerplants'][i]['type']
+            instanceDict['PowerPlant_%s' % str(i)]._efficiency = powerplantsDict['powerplants'][i]['efficiency'] 
+            instanceDict['PowerPlant_%s' % str(i)]._pmin = powerplantsDict['powerplants'][i]['pmin']
+            instanceDict['PowerPlant_%s' % str(i)]._pmax = powerplantsDict['powerplants'][i]['pmax'] 
+            instanceDict['PowerPlant_%s' % str(i)]._fuels = fuelsDict['fuels']
+            instanceDict['PowerPlant_%s' % str(i)].Choose_Fuel()
+            instanceDict['PowerPlant_%s' % str(i)].Merit_Value()
         
         # dictionary of powerplant objects created. 
         
         #costEff=Build_Cost_Eff(nameList, powerplantsDict, fuelsDict['fuels'])
         #euro per ton of co2 and wind% passed through
         #merCond ={'co2(euro/ton)': fuelsDict['fuels']['co2(euro/ton)'], 'wind(%)': fuelsDict['fuels']['wind(%)']}
+        
         meritOrd = Merit_Order(instanceDict)#(merCond, costEff, nameList, powerplantsDict)
         
         #Tomorrow use meritOrd to assign power load, use load - sum(pmin) so need powerplantsDict
         
         
-        pList = UnitCommit(meritOrd, powerplantDict) #must contain all names!
-
-        listOut = [{key_list[0]: nameList[idx], key_list[1]: pList[idx]} for idx in range(len(nameList))]
+        pDict = Unit_Commit(meritOrd, dataOuterDict['load']) #must contain all names!
+        breakpoint()
+        #listOut = [{key_list[0]: nameList[idx], key_list[1]: pList[idx]} for idx in range(len(nameList))]
        
         if flask.request.method == 'POST':
-            return jsonify(listOut), 200
+            return jsonify('oof'), 200
         
         
         
         
-def Build_Cost_Eff(names, powDict, costs):
-    #Here extract relevant info
-    #first extract from fuels gas, kerosine info
-    #attach to key: name of powerplant
-    #for wp1, wp2 do same operation except divide % by 100
+# def Build_Cost_Eff(names, powDict, costs):
+#     #Here extract relevant info
+#     #first extract from fuels gas, kerosine info
+#     #attach to key: name of powerplant
+#     #for wp1, wp2 do same operation except divide % by 100
    
-    typeDict = {'gasfired': costs['gas(euro/MWh)'], 'turbojet': costs['kerosine(euro/MWh)'], 'windturbine': costs['wind(%)']/100}
-    costEff = {x : [] for x in names}
-    for items in powDict['powerplants']: 
-        costEff[items['name']].append(items['type'])
-        costEff[items['name']].append(items['efficiency'])
-        for key in typeDict:
-            if costEff[items['name']][0] == key:
-                costEff[items['name']].append(typeDict[key])
-    return costEff
+#     typeDict = {'gasfired': costs['gas(euro/MWh)'], 'turbojet': costs['kerosine(euro/MWh)'], 'windturbine': costs['wind(%)']/100}
+#     costEff = {x : [] for x in names}
+#     for items in powDict['powerplants']: 
+#         costEff[items['name']].append(items['type'])
+#         costEff[items['name']].append(items['efficiency'])
+#         for key in typeDict:
+#             if costEff[items['name']][0] == key:
+#                 costEff[items['name']].append(typeDict[key])
+#     return costEff
    
 
 def Merit_Order(objDict):#merCond, costEff, names, powDict):  # take in dict containing cost per MWh and eff for given name 
     meritOrderUnSorted={}
+    breakpoint()
+    listOfObj = list(objDict.values())
     
-    for key in objDict:
-        meritOrderUnSorted[objDict[key].name] = objDict[key].meritVal
+   # for key in objDict:
+       # meritOrderUnSorted[objDict[key]= objDict[key]._meritVal
    # keyToDel = []
     # for key in costEff:
     #     name = key
@@ -223,22 +235,25 @@ def Merit_Order(objDict):#merCond, costEff, names, powDict):  # take in dict con
     #         keyToDel.append(key)
     # for i in keyToDel:
     #     del meritOrderUnSorted[i]
-    merOrd = sorted(meritOrderUnSorted.items(), key=operator.itemgetter(1))
-    return merOrd
+    #merOrd =OrderedDict()
+    listOfObj.sort(key=lambda x: x._meritVal, reverse=False)
+    #merOrd = {x._meritVal : x for x in listOfObj}#{sorted(meritOrderUnSorted.items(), key=operator.itemgetter(1))}
+    return listOfObj
 
 
-def Unit_Commit(mOrd, pDict):
+def Unit_Commit(mer_Ord, load):
     # Ignores spinning reserve principle, load - sum pmin of all in merit OrderedDict, from first to last of merit 
     #order if PMax of an item < than load -sum pmin, then next item. If PMax of new item is more than needed, just use amount 
     #needed
     #Unit Commit output can pretty much go straight into listOut without total cost 
-    pass
+    pDict = [{}*len(mer_Ord)]
+    
+    for i in mer_Ord:
+       if mer_Ord[i].pmax < load:
+           pDict[mer_Ord[i]._name] = 
+    return 
 
-#Finally, tests, and error handling. 
-#Docker file
-#toml file. 
-#C02 addition, maybe websocket
-   
+
 
 if __name__ == '__main__':
     app.run() 
