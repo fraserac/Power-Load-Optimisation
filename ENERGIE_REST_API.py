@@ -16,26 +16,16 @@ import operator
 class PowerPlant:
      
     def __init__(self):
-        self.name = name
-        self.pType = type_
-        self.efficiency = efficiency
-        self.pmin = pmin
-        self.pmax = pmax
-        self.fuels = fuels
-   
-    def ChooseFuel(self):
-        if pType !=  'windturbine':
-            self.typeDict = {'gasfired': fuels['gas(euro/MWh)'], 'turbojet': fuels['kerosine(euro/MWh)']}
-            self.fuelCost = typeDict[pType]
-        elif pType ==  'windturbine':
-            self.typeDict = {'windturbine': fuels['wind(%)']/100}
-            self.fuelDec = typeDict[pType]
-    
-    def MeritValue(self):
-        if pType != 'windturbine':
-            self.meritVal = 1/efficiency*fuelCost
-        elif pType == 'windturbine':
-            self.meritVal = 0
+        self.name = ""
+        self.pType = ""
+        self.efficiency = 0.0
+        self.pmin = 0.0
+        self.pmax = 0.0
+        self.fuels = {"default": 0.0}
+        self.typeDict = {}
+        self.fuelCost = {}
+        self.fuelDec = {}
+        self.meritVal = 0.0
     
     @property        
     def name(self):
@@ -115,8 +105,28 @@ class PowerPlant:
             else:
                 app.logger.error('fuels cost or percentage cannot be negative.')
         except TypeError:
-            app.logger.error('Fuels needs to be a dictionary.')
+            app.logger.error('Fuels needs to be a dictionary.')   
+   
     
+    def Choose_Fuel(self):
+        if pType !=  'windturbine':
+            self.typeDict = {'gasfired': fuels['gas(euro/MWh)'], 'turbojet': fuels['kerosine(euro/MWh)']}
+            self.fuelCost = typeDict[pType]
+        elif pType ==  'windturbine':
+            self.typeDict = {'windturbine': fuels['wind(%)']/100}
+            self.fuelDec = typeDict[pType]
+    
+    def Merit_Value(self):
+        if pType != 'windturbine':
+            self.meritVal = 1/efficiency*fuelCost
+        elif pType == 'windturbine':
+            self.meritVal = 0
+    
+   
+    
+###################################################################################
+#########################
+
     
 @app.route('/productionplan/', methods= ['GET', 'POST'])
 def Production_Plan():
