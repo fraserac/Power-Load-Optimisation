@@ -1,14 +1,4 @@
 # -*- coding: utf-8 -*-
-
-"""
-load = sum of power output
-do not exceed pmax, or lower than pmin.
-Merit order important
-
-#set up output dict ->
-
-
-"""
 import flask
 from flask import Flask, request, jsonify
 app = Flask(__name__)
@@ -247,5 +237,5 @@ def Unit_Commit(mer_Ord, load):
 
 
 if __name__ == '__main__':
-    app.run() 
+    app.run(port = 8888) 
     
