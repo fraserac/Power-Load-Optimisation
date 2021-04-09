@@ -30,8 +30,8 @@ class PowerPlant(object):
         self._fuelDec = {}
         self._meritVal = 0.0
         self.typeDict = {}
-        self.fuelCost = {}
-        self.fuelDec = {}
+        self._fuelCost = 0.0
+        self._fuelDec = 0.0
     @property        
     def name(self):
         return self._name 
@@ -116,14 +116,14 @@ class PowerPlant(object):
     def Choose_Fuel(self):
         if self._pType !=  'windturbine':
             self.typeDict = {'gasfired': self._fuels['gas(euro/MWh)'], 'turbojet': self._fuels['kerosine(euro/MWh)']}
-            self.fuelCost = self.typeDict[self._pType]
+            self._fuelCost = self.typeDict[self._pType]
         elif self._pType ==  'windturbine':
             self.typeDict = {'windturbine': self._fuels['wind(%)']/100}
-            self.fuelDec = self.typeDict[self._pType]
+            self._fuelDec = self.typeDict[self._pType]
     
     def Merit_Value(self):
         if self._pType != 'windturbine':
-            self._meritVal = (1/self._efficiency*self.fuelCost)*self._pmin 
+            self._meritVal = (1/self._efficiency*self._fuelCost)
         elif self._pType == 'windturbine':
             self._meritVal = 0 
     
@@ -142,7 +142,7 @@ def Production_Plan():
         pPlantsSpecsDict =  {"name" : "","type": "",
                                   "efficiency": 0.0, "pmin": 0, "pmax": 0}
         
-        powerplantsDict = {"powerplants" : [pPlantsSpecsDict]*4}
+        powerplantsDict = {"powerplants" : [pPlantsSpecsDict]*len(pPlantsSpecsDict.keys())}
         
        
         dataOuterDict = {"load" : 0, "fuels" : fuelsDict["fuels"], 
@@ -191,11 +191,11 @@ def Production_Plan():
         
         
         pDict = Unit_Commit(meritOrd, dataOuterDict['load']) #must contain all names!
-        breakpoint()
+        
         #listOut = [{key_list[0]: nameList[idx], key_list[1]: pList[idx]} for idx in range(len(nameList))]
        
         if flask.request.method == 'POST':
-            return jsonify('oof'), 200
+            return jsonify(pDict), 200
         
         
         
@@ -219,7 +219,7 @@ def Production_Plan():
 
 def Merit_Order(objDict):#merCond, costEff, names, powDict):  # take in dict containing cost per MWh and eff for given name 
     meritOrderUnSorted={}
-    breakpoint()
+   # breakpoint()
     listOfObj = list(objDict.values())
     
    # for key in objDict:
@@ -242,16 +242,55 @@ def Merit_Order(objDict):#merCond, costEff, names, powDict):  # take in dict con
 
 
 def Unit_Commit(mer_Ord, load):
+   initialLoad = load
     # Ignores spinning reserve principle, load - sum pmin of all in merit OrderedDict, from first to last of merit 
     #order if PMax of an item < than load -sum pmin, then next item. If PMax of new item is more than needed, just use amount 
     #needed
     #Unit Commit output can pretty much go straight into listOut without total cost 
-    pDict = [{}*len(mer_Ord)]
-    
-    for i in mer_Ord:
-       if mer_Ord[i].pmax < load:
-           pDict[mer_Ord[i]._name] = 
-    return 
+   pDict = [OrderedDict({'name' : "", 'p':0}) for i in range(len(mer_Ord))]
+   breakpoint()
+   
+   noNeg = 'null'
+   for i in range(len(mer_Ord)):
+       if mer_Ord[i].pmax <= load:
+           pDict[i]['name'] = mer_Ord[i]._name
+           pDict[i]['p'] = mer_Ord[i]._pmax
+           load -= mer_Ord[i]._pmax
+       elif mer_Ord[i]._pmax > load:
+           if mer_Ord[i]._pmin <= load:
+               pDict[i]['name'] = mer_Ord[i]._name
+               pDict[i]['p'] = load
+               load =0
+           elif mer_Ord[i]._pmin >load and load ==0:
+               pDict[i]['name'] = mer_Ord[i]._name
+               pDict[i]['p'] =0# mer_Ord[i]._pmin
+           elif mer_Ord[i]._pmin >load and load >0:
+               pDict[i]['name'] = mer_Ord[i]._name
+               pDict[i]['p'] = load 
+               load = 0
+               noNeg = i
+       elif load <=0: 
+           pDict[i]['name'] = mer_Ord[i]._name
+           pDict[i]['p'] = 0
+          
+   if not noNeg == 'null' and pDict[noNeg]['p'] < mer_Ord[noNeg]._pmin:
+         remainder = (mer_Ord[noNeg]._pmin-abs(load))
+         print("remainder", remainder)
+         pDict[noNeg-1]['p'] -= remainder
+         pDict[noNeg]['p'] += remainder
+        #app.logger.error('Load too high for all power plants to meet demand.')
+   elif load <0 and len(pDict)>1:
+        # decrease power from second worst merit power source to meet supply.
+        pass
+   elif load <0 and len(pDict) <=1:
+        app.logger.error('Load is below Pmin of all plants.')
+   check =0
+   for i in range(len(pDict)): 
+        check += pDict[i]['p'] 
+   if check > initialLoad or check < initialLoad:
+        app.logger.error('Final output does not match load. Internal error. ')
+   print(check)
+   return pDict
 
 
 
