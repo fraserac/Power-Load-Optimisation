@@ -32,6 +32,7 @@ class PowerPlant(object):
         self.typeDict = {}
         self._fuelCost = 0.0
         self._fuelDec = 0.0
+        self._c02Cost = 0.0
     @property        
     def name(self):
         return self._name 
@@ -123,10 +124,14 @@ class PowerPlant(object):
     
     def Merit_Value(self):
         if self._pType != 'windturbine':
-            self._meritVal = (1/self._efficiency*self._fuelCost)
+            self._meritVal = (1/self._efficiency*self._fuelCost) + self._c02Cost
         elif self._pType == 'windturbine':
             self._meritVal = 0 
     
+    def Carbon_Cost(self):
+        if self._pType == 'gasfired':
+            self._c02Cost = 0.3*self._fuels['co2(euro/ton)']
+        pass
    
     
 ###################################################################################
@@ -176,9 +181,11 @@ def Production_Plan():
             instanceDict['PowerPlant_%s' % str(i)]._pmin = powerplantsDict['powerplants'][i]['pmin']
             instanceDict['PowerPlant_%s' % str(i)]._pmax = powerplantsDict['powerplants'][i]['pmax'] 
             instanceDict['PowerPlant_%s' % str(i)]._fuels = fuelsDict['fuels']
+            instanceDict['PowerPlant_%s' % str(i)].Carbon_Cost()
             instanceDict['PowerPlant_%s' % str(i)].Choose_Fuel()
             instanceDict['PowerPlant_%s' % str(i)].Merit_Value()
-        
+            
+            
         # dictionary of powerplant objects created. 
         
         #costEff=Build_Cost_Eff(nameList, powerplantsDict, fuelsDict['fuels'])
@@ -248,7 +255,7 @@ def Unit_Commit(mer_Ord, load):
     #needed
     #Unit Commit output can pretty much go straight into listOut without total cost 
    pDict = [OrderedDict({'name' : "", 'p':0}) for i in range(len(mer_Ord))]
-   breakpoint()
+   #breakpoint()
    
    noNeg = 'null'
    for i in range(len(mer_Ord)):
