@@ -163,7 +163,7 @@ def Production_Plan():
             instanceDict['PowerPlant_%s' % str(i)]._efficiency = powerplantsDict['powerplants'][i]['efficiency'] 
             instanceDict['PowerPlant_%s' % str(i)]._pmin = powerplantsDict['powerplants'][i]['pmin']
             if instanceDict['PowerPlant_%s' % str(i)]._pType =='windturbine':
-                instanceDict['PowerPlant_%s' % str(i)]._pmax = int(powerplantsDict['powerplants'][i]['pmax']*(fuelsDict['fuels']["wind(%)"]/100))
+                instanceDict['PowerPlant_%s' % str(i)]._pmax = round(powerplantsDict['powerplants'][i]['pmax']*(fuelsDict['fuels']["wind(%)"]/100),1)
             else:
                 instanceDict['PowerPlant_%s' % str(i)]._pmax = powerplantsDict['powerplants'][i]['pmax'] 
            
