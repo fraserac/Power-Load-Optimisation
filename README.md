@@ -26,7 +26,7 @@ energyEnvironment\Scripts\activate
 
 Then simply type:
 
-flask run -- port=8888
+flask run 
 
 
 # To send a POST request, you can use Postman software. 
